@@ -34,15 +34,6 @@ class DataManager:
                 data.append(row)
         return data
 
-    
-    def update_excel_with_modified_data(self, old_data, new_data):
-        for row_cells in self.sheet.iter_rows(min_row=2):
-            row_values = tuple(cell.value for cell in row_cells[:3])
-            if row_values == old_data:
-                for index, cell in enumerate(row_cells[:3]):
-                    cell.value = new_data[index]
-                break
-        self.workbook.save(self.filename)
 
     def delete_from_excel(self, treeview_index):
 

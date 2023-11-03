@@ -164,7 +164,6 @@ class BudgetApp:
             self.save_edit_button = tk.Button(self.edit_window, text="Save Changes", command=self.save_edited_entry)
             self.save_edit_button.grid(row=5, column=3, sticky='ew')
 
-
         else:
             self.show_error("No item selected for editing")
 
@@ -211,9 +210,6 @@ class BudgetApp:
         for item in self.treeview.get_children():
             self.treeview.delete(item)
 
-
-    def edit_selected(self):
-        pass
 
     def update_totals(self):
 
