@@ -98,9 +98,10 @@ class BudgetApp:
             return
         
         amount = float(amount_str)
+        formatted_amount = f"${amount:,.2f}"
 
         type_str = "Income" if self.is_income.get() else "Expense"
-        entry = (type_str, description, amount)
+        entry = (type_str, description, formatted_amount)
         self.treeview.insert('', 'end', values=entry)
 
         self.data_manager.add_data_to_excel(entry)

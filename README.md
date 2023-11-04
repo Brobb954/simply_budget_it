@@ -6,14 +6,14 @@ Currently the edit selection feature is working superficially, still requires mo
 
 ## Overall program progress in this branch.
 
-### Bugs fixed:
-
-* Total income and expenses now show correctly
-
-### Current bugs:
+### Bugs fixed is this commit:
 
 * Format only showing one decimal place instead of two
 * Upon reloading any 0s after decimal disappear
+
+
+### Current bugs:
+
 
 ### Current Features:
 

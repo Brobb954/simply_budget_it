@@ -82,13 +82,16 @@ class DataManager:
         # Calculate totals from treeview data
         for entry in self.load_data_from_excel():
             if entry[0] == "Income":
-                total_income+= float(entry[2])
+                total_income+= float(entry[2].replace('$',''))
             else:
-                total_expense += float(entry[2])
+                total_expense += float(entry[2].replace('$',''))
 
         balance = total_income - total_expense
         return total_expense, total_income, balance
     
     def is_valid_amount(self, amount_str):
         return re.fullmatch(r'\d+(\.\d{1,2})?$', amount_str) is not None
+    
+    def format_entry():
+        pass
         
