@@ -34,7 +34,6 @@ class DataManager:
                 data.append(row)
         return data
 
-
     def delete_from_excel(self, treeview_index):
 
         # Open workbook and select active sheet
@@ -58,12 +57,27 @@ class DataManager:
 
         workbook.save(self.filename)
 
-    
+
+    def update_excel_row(self, index, new_values):
+
+        # Find the row
+        row_number = index + 2
+
+        # Open current workbook
+        workbook = load_workbook(self.filename)
+        sheet = workbook.active
+
+        sheet.cell(row=row_number, column=1, value=new_values[0])
+        sheet.cell(row=row_number, column=2, value=new_values[1])
+        sheet.cell(row=row_number, column=3, value=new_values[2])
+
+        workbook.save(self.filename)
+                
 
     def calculate_totals(self):
         # Initialize Totals
-        total_income = 0.0
-        total_expense = 0.0
+        total_income = 0.00
+        total_expense = 0.00
 
         # Calculate totals from treeview data
         for entry in self.load_data_from_excel():

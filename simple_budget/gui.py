@@ -148,6 +148,7 @@ class BudgetApp:
 
             self.is_income.set(selected_values[0] == "Income")
         
+            self.edit_type_var = tk.StringVar(value=selected_values[0])
             self.edit_description_var = tk.StringVar(value=selected_values[1])
             self.edit_amount_var = tk.StringVar(value=selected_values[2])
 
@@ -162,7 +163,10 @@ class BudgetApp:
             self.toggle_type_button.grid(row=3, column=3, columnspan=2, sticky='ew')
 
             self.save_edit_button = tk.Button(self.edit_window, text="Save Changes", command=self.save_edited_entry)
-            self.save_edit_button.grid(row=5, column=3, sticky='ew')
+            self.save_edit_button.grid(row=4, column=5, sticky='ew')
+
+            self.edit_button = tk.Button(self.root, text="Edit Selected", command=self.open_edit_window)
+            self.edit_button.grid(row=2, column=2, sticky='ew')
 
         else:
             self.show_error("No item selected for editing")
@@ -172,6 +176,25 @@ class BudgetApp:
         self.is_income.set(not current_type)
 
         self.toggle_type_button.config(text="Switch to Expense" if self.is_income.get() else "Switch to Income")
+
+
+    def save_edited_entry(self):
+        selected_item = self.treeview.selection()[0]
+
+        new_values = (self.edit_type_var.get(),
+                      self.edit_description_var.get(),
+                      self.edit_amount_var.get())
+        
+        self.treeview.item(selected_item, value=new_values)
+
+        self.update_totals()
+
+        selected_index = self.treeview.index(selected_item)
+
+        self.data_manager.update_excel_row(selected_index, new_values)
+
+        self.edit_window.destroy()
+
 
     def delete_selected(self):
         # Get selected item in treeview
@@ -214,7 +237,7 @@ class BudgetApp:
     def update_totals(self):
 
         # Calculate totals and update StringVars
-        total_income, total_expenses, balance = self.data_manager.calculate_totals()
+        total_expenses, total_income, balance = self.data_manager.calculate_totals()
 
         self.total_income_var.set(f"Total Income: ${total_income:,.2f}")
         self.total_expense_var.set(f"Total Expenses: ${total_expenses:,.2f}")
