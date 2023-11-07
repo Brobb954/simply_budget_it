@@ -14,6 +14,9 @@ Currently the edit selection feature is working superficially, still requires mo
 
 ### Current bugs:
 
+* Totals do not update in gui after update_totals is called
+* Type change does not save
+
 
 ### Current Features:
 
