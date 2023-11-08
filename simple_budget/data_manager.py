@@ -1,27 +1,41 @@
 import re
 from openpyxl import Workbook, load_workbook
+from contextlib import contextmanager
 import os
 
+@contextmanager
+def managed_workbook(filename):
+    if os.path.exists(filename):
+        workbook = load_workbook(filename)
+    else:
+        workbook = Workbook()
+    try:
+        yield workbook
+    finally:
+        workbook.save(filename)
+
 class DataManager:
-    def __init__(self, filename="budget_data.xlsx"):
+    def __init__(self, filename):
         self.filename = filename
-        self.workbook = None
-        self.sheet = None
         self.in_memory_data = [] # In-memory storage for data
-        self.load_or_create_workbook()
 
     def load_or_create_workbook(self):
-        if os.path.exists(self.filename):
-            self.workbook = load_workbook(self.filename)
-            self.sheet = self.workbook.active
-            self.load_data()
-        else:
-            self.workbook = Workbook()
-            self.sheet = self.workbook.active
-            self.sheet["A1"] = "Type"
-            self.sheet["B1"] = "Description"
-            self.sheet["C1"] = "Amount"
-            self.workbook.save(self.filename)
+        try:
+            with managed_workbook(self.filename) as workbook:
+                self.workbook = workbook
+                self.sheet = workbook.active
+                if os.path.exists(self.filename):
+                    self.load_data()
+                    print("workbook loaded")
+                else:
+                    self.sheet["A1"] = "Type"
+                    self.sheet["B1"] = "Description"
+                    self.sheet["C1"] = "Amount"
+                    print("New workbook created")
+        except PermissionError:
+            print("Permission denied: Unable to access the file")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
     def load_data(self):
         self.in_memory_data = []
@@ -30,10 +44,10 @@ class DataManager:
                 self.in_memory_data.append(row)
 
 
-    def save_data_to_excel(self):
+    def save_to_excel(self):
 
         # Clear existing data if data exists
-        if self.sheet.max_rows > 1:
+        if self.sheet.max_row > 1:
             self.sheet.delete_rows(2, self.sheet.max_row - 1)
 
         # Write new data from memory
@@ -42,16 +56,7 @@ class DataManager:
 
         # Save workbook
         self.workbook.save(self.filename)
-
-    def add_and_process_data(self, entry_type, description, amount_str):
-        formatted_entry = self.format_entry(entry_type, description, amount_str)
-
-        if formatted_entry:
-            self.in_memory_data(formatted_entry)
-
-            return formatted_entry
-        else:
-            return None
+        print("saved")
         
     
 
@@ -79,9 +84,9 @@ class DataManager:
             self.in_memory_data[index] = new_values
             return "Entry updated successfully"
         else:
-            return "Invalid entry index. Entry not found"
+            return None
         
-    def get_select_entry(self, index):
+    def get_selected_entry(self, index):
         if 0 <= index < len(self.in_memory_data):
             return self.in_memory_data[index]
         else:
@@ -107,12 +112,16 @@ class DataManager:
         pattern = r'\d+(\.\d{1,2})?$'
         return re.fullmatch(pattern, amount_str) is not None
     
-    def format_entry(self, entry_type, description, amount_str):
+    def format_entry(self, amount_str):
         if self.is_valid_amount(amount_str):
             amount_float = float(amount_str)
             formatted_amount = f"${amount_float:,.2f}"
-            return(entry_type, description, formatted_amount)
+            return(formatted_amount)
         else:
             return None
+        
+    def close(self):
+        self.save_to_excel()
+
 
         

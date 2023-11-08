@@ -97,9 +97,12 @@ class BudgetApp:
             return
 
         type_str = "Income" if self.is_income.get() else "Expense"
-        processed_entry = self.data_manager.format_entry(type_str, description, amount_str)
+        formatted_amount = self.data_manager.format_entry(amount_str)
+
+        processed_entry = (type_str, description, formatted_amount)
         if processed_entry:
             
+            self.data_manager.in_memory_data.append(processed_entry)
             self.treeview.insert('', 'end', values=processed_entry)
             self.update_totals()
 
@@ -133,15 +136,21 @@ class BudgetApp:
     def open_edit_window(self):
 
         # Initiate Variables
-        selected_item = self.treeview.selection()
+        selected_items = self.treeview.selection()
        
         
         # Checks for selection
-        if selected_item:
+        if selected_items:
 
-            selected_index = self.treeview.index(selected_item)
+            item_id = selected_items[0]
+            selected_index = self.treeview.index(item_id)
+
+            print(f"{item_id}, {selected_index}")
+            print(self.data_manager.in_memory_data)
 
             selected_values = self.data_manager.get_selected_entry(selected_index)
+
+            print("Values: ", selected_values)
 
             if selected_values:
 
@@ -149,11 +158,14 @@ class BudgetApp:
                 self.edit_window.title("Edit Entry")
                 self.edit_window.geometry("500x200")
 
+                print("Window open")
+
                 self.is_income.set(selected_values[0] == "Income")
             
                 self.edit_type_var = tk.StringVar(value=selected_values[0])
                 self.edit_description_var = tk.StringVar(value=selected_values[1])
-                self.edit_amount_var = tk.StringVar(value=selected_values[2])
+                amount_stripped = selected_values[2].replace('$', '').replace(',', '')
+                self.edit_amount_var = tk.StringVar(value=amount_stripped)
 
                 self.description_entry = tk.Entry(self.edit_window, text="Description", textvariable=self.edit_description_var)
                 self.description_entry.grid(row=4, column=0, columnspan=3, sticky='ew')
@@ -168,17 +180,17 @@ class BudgetApp:
                 self.save_edit_button = tk.Button(self.edit_window, text="Save Changes", command=self.save_edited_entry)
                 self.save_edit_button.grid(row=4, column=5, sticky='ew')
 
-                self.edit_button = tk.Button(self.root, text="Edit Selected", command=self.open_edit_window)
-                self.edit_button.grid(row=2, column=2, sticky='ew')
 
         else:
             self.show_error("No item selected for editing")
 
     def edit_switch_type(self):
-        current_type = self.is_income.get()
-        self.is_income.set(not current_type)
+        self.is_income.set(not self.is_income.get())
 
-        self.toggle_type_button.config(text="Switch to Expense" if self.is_income.get() else "Switch to Income")
+        toggle_button_text = "Switch to Expense" if self.is_income.get() else "Switch to Income"
+        self.toggle_type_button.config(text=toggle_button_text)
+
+        self.edit_type_var.set("Income" if self.is_income.get() else "Expense")
 
 
     def save_edited_entry(self):
@@ -196,7 +208,7 @@ class BudgetApp:
             self.show_error("Description cannot be empty")
             return
         
-        formatted_amount = self.data_manager.format_amount(amount_str)
+        formatted_amount = self.data_manager.format_entry(amount_str)
 
         new_values = (entry_type, description, formatted_amount)
 
@@ -205,10 +217,10 @@ class BudgetApp:
         update_message = self.data_manager.update_data_entry(selected_index, new_values)
 
         if update_message:
-            self.show_error(update_message)
-        else:
+            self.show_info(update_message)
             self.update_totals()
-        
+        else:
+            self.show_error("Invalid entry index. Entry not found")
 
         self.edit_window.destroy()
 
@@ -228,7 +240,7 @@ class BudgetApp:
             delete_message = self.data_manager.delete_data(selected_index)
 
             if delete_message:
-                self.show_error("Error", delete_message)
+                self.show_error(delete_message)
             else:
                 # Deletion successful if no message
                 self.treeview.delete(selected_item)
