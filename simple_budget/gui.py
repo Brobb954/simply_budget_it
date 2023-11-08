@@ -86,9 +86,8 @@ class BudgetApp:
 
     def add_entry(self):
         description = self.description_var.get().strip()
-        amount_str = self.amount_var.get()
+        amount_str = self.amount_var.get().strip()
 
-        print(f"Description: {description}, Amount: {amount_str}")
         if not description:
             self.show_error("Description cannot be empty")
             return
@@ -96,19 +95,18 @@ class BudgetApp:
         if not self.data_manager.is_valid_amount(amount_str):
             self.show_error("Invalid amount. Please enter a number with up to two decimal places")
             return
-        
-        amount = float(amount_str)
-        formatted_amount = f"${amount:,.2f}"
 
         type_str = "Income" if self.is_income.get() else "Expense"
-        entry = (type_str, description, formatted_amount)
-        self.treeview.insert('', 'end', values=entry)
+        processed_entry = self.data_manager.format_entry(type_str, description, amount_str)
+        if processed_entry:
+            
+            self.treeview.insert('', 'end', values=processed_entry)
+            self.update_totals()
 
-        self.data_manager.add_data_to_excel(entry)
-
-        self.description_var.set('')
-        self.amount_var.set('')
-        self.update_totals()
+            self.description_var.set('')
+            self.amount_var.set('')
+        else:
+            self.show_error("Failed to add entry. Please check the values entered.")
 
     def switch_type(self):
 
@@ -125,7 +123,7 @@ class BudgetApp:
         for item in self.treeview.get_children():
             self.treeview.delete(item)
 
-        data = self.data_manager.load_data_from_excel()
+        data = self.data_manager.in_memory_data
 
         for entry in data:
             self.treeview.insert('', 'end', values=entry)
@@ -141,33 +139,37 @@ class BudgetApp:
         # Checks for selection
         if selected_item:
 
-            selected_values = self.treeview.item(selected_item, 'values')
+            selected_index = self.treeview.index(selected_item)
 
-            self.edit_window = tk.Toplevel(self.root)
-            self.edit_window.title("Edit Entry")
-            self.edit_window.geometry("500x200")
+            selected_values = self.data_manager.get_selected_entry(selected_index)
 
-            self.is_income.set(selected_values[0] == "Income")
-        
-            self.edit_type_var = tk.StringVar(value=selected_values[0])
-            self.edit_description_var = tk.StringVar(value=selected_values[1])
-            self.edit_amount_var = tk.StringVar(value=selected_values[2])
+            if selected_values:
 
-            self.description_entry = tk.Entry(self.edit_window, text="Description", textvariable=self.edit_description_var)
-            self.description_entry.grid(row=4, column=0, columnspan=3, sticky='ew')
+                self.edit_window = tk.Toplevel(self.root)
+                self.edit_window.title("Edit Entry")
+                self.edit_window.geometry("500x200")
 
-            self.amount_entry = tk.Entry(self.edit_window, text="Amount", textvariable=self.edit_amount_var)
-            self.amount_entry.grid(row=4, column=4, columnspan=2, sticky='ew')
+                self.is_income.set(selected_values[0] == "Income")
+            
+                self.edit_type_var = tk.StringVar(value=selected_values[0])
+                self.edit_description_var = tk.StringVar(value=selected_values[1])
+                self.edit_amount_var = tk.StringVar(value=selected_values[2])
 
-            toggle_button_text = "Switch to Expense" if self.is_income.get() else "Switch to Income"
-            self.toggle_type_button = tk.Button(self.edit_window, text=toggle_button_text, command=self.edit_switch_type, width=10)
-            self.toggle_type_button.grid(row=3, column=3, columnspan=2, sticky='ew')
+                self.description_entry = tk.Entry(self.edit_window, text="Description", textvariable=self.edit_description_var)
+                self.description_entry.grid(row=4, column=0, columnspan=3, sticky='ew')
 
-            self.save_edit_button = tk.Button(self.edit_window, text="Save Changes", command=self.save_edited_entry)
-            self.save_edit_button.grid(row=4, column=5, sticky='ew')
+                self.amount_entry = tk.Entry(self.edit_window, text="Amount", textvariable=self.edit_amount_var)
+                self.amount_entry.grid(row=4, column=4, columnspan=2, sticky='ew')
 
-            self.edit_button = tk.Button(self.root, text="Edit Selected", command=self.open_edit_window)
-            self.edit_button.grid(row=2, column=2, sticky='ew')
+                toggle_button_text = "Switch to Expense" if self.is_income.get() else "Switch to Income"
+                self.toggle_type_button = tk.Button(self.edit_window, text=toggle_button_text, command=self.edit_switch_type, width=10)
+                self.toggle_type_button.grid(row=3, column=3, columnspan=2, sticky='ew')
+
+                self.save_edit_button = tk.Button(self.edit_window, text="Save Changes", command=self.save_edited_entry)
+                self.save_edit_button.grid(row=4, column=5, sticky='ew')
+
+                self.edit_button = tk.Button(self.root, text="Edit Selected", command=self.open_edit_window)
+                self.edit_button.grid(row=2, column=2, sticky='ew')
 
         else:
             self.show_error("No item selected for editing")
@@ -181,18 +183,32 @@ class BudgetApp:
 
     def save_edited_entry(self):
         selected_item = self.treeview.selection()[0]
-
-        new_values = (self.edit_type_var.get(),
-                      self.edit_description_var.get(),
-                      self.edit_amount_var.get())
-        
-        self.treeview.item(selected_item, value=new_values)
-
-        self.update_totals()
-
         selected_index = self.treeview.index(selected_item)
 
-        self.data_manager.update_excel_row(selected_index, new_values)
+        entry_type = self.edit_type_var.get()
+        description = self.edit_description_var.get().strip()
+        amount_str = self.edit_amount_var.get()
+        
+        if not self.data_manager.is_valid_amount(amount_str):
+            self.show_error("Invalid amount. Please enter a valid dollar amount")
+            return
+        if not description:
+            self.show_error("Description cannot be empty")
+            return
+        
+        formatted_amount = self.data_manager.format_amount(amount_str)
+
+        new_values = (entry_type, description, formatted_amount)
+
+        self.treeview.item(selected_item, values=new_values)
+
+        update_message = self.data_manager.update_data_entry(selected_index, new_values)
+
+        if update_message:
+            self.show_error(update_message)
+        else:
+            self.update_totals()
+        
 
         self.edit_window.destroy()
 
@@ -200,18 +216,23 @@ class BudgetApp:
     def delete_selected(self):
         # Get selected item in treeview
         selected_item = self.treeview.selection()
+        
+        if not selected_item:
+            self.show_error("Error", " No item selected")
+            return
 
         confirm = messagebox.askyesno("Confirm", "Do you want to delete selection")
         
         if confirm:
-
             selected_index = self.treeview.index(selected_item)
+            delete_message = self.data_manager.delete_data(selected_index)
 
-            self.data_manager.delete_from_excel(selected_index)
-
-            self.treeview.delete(selected_item)
-
-        self.update_totals()
+            if delete_message:
+                self.show_error("Error", delete_message)
+            else:
+                # Deletion successful if no message
+                self.treeview.delete(selected_item)
+                self.update_totals()
 
 
     def delete_all(self):
@@ -223,12 +244,12 @@ class BudgetApp:
 
             # Clear all data
             self.clear_treeview()
-            self.data_manager.clear_excel()
+            message = self.data_manager.clear_data()
 
         # Reset totals and balances
+        self.show_info(message)
         self.update_totals()
             
-
 
     def clear_treeview(self):
         for item in self.treeview.get_children():
@@ -252,6 +273,14 @@ class BudgetApp:
         tk.Label(error_box, text=message).pack(expand=True)
 
         error_box.after(1000, error_box.destroy)
+
+    def show_info(self, message):
+        info_box = tk.Toplevel(self.root)
+        info_box.title("Information")
+        info_box.geometry("500x100")
+        tk.Label(info_box, text=message).pack(expand=True)
+
+        info_box.after(1000, info_box.destroy)
 
     def run(self):
         self.root.mainloop()
