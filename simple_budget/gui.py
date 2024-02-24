@@ -104,6 +104,7 @@ class BudgetApp:
             
             self.data_manager.in_memory_data.append(processed_entry)
             self.treeview.insert('', 'end', values=processed_entry)
+            
             self.update_totals()
 
             self.description_var.set('')

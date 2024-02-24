@@ -101,9 +101,9 @@ class DataManager:
         # Calculate totals from treeview data
         for entry in self.in_memory_data:
             if entry[0] == "Income":
-                total_income+= float(entry[2].replace('$',''))
+                total_income+= float(entry[2].replace('$','').replace(',',''))
             else:
-                total_expense += float(entry[2].replace('$',''))
+                total_expense += float(entry[2].replace('$','').replace(',',''))
 
         balance = total_income - total_expense
         return total_expense, total_income, balance
