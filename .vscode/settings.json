@@ -1,12 +1,13 @@
 {
-    "cSpell.words": [
-        "columnconfig",
-        "columnspan",
-        "openpyxl",
-        "rowconfig",
-        "textvariable",
-        "Treeview",
-        "validatecommand",
-        "vcmd"
-    ]
+  "cSpell.words": [
+    "columnconfig",
+    "columnspan",
+    "openpyxl",
+    "rowconfig",
+    "textvariable",
+    "Treeview",
+    "validatecommand",
+    "vcmd"
+  ],
+  "rust-analyzer.linkedProjects": ["./simply_budget_it/backend/Cargo.toml"]
 }
