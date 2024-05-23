@@ -32,6 +32,8 @@
 
 <h3 align="center">Simply Budget It</h3>
 
+<h3 align="center">This is currently under maintenance, the pythong build is still able to be build locally but currently I am porting this to a webapp with nextjs frontend and rust backend</h3>
+
   <p align="center">
     A simple budget tool for locally tracking income and expenses
     <br />
