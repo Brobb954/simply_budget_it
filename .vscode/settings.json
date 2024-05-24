@@ -2,8 +2,11 @@
   "cSpell.words": [
     "columnconfig",
     "columnspan",
+    "dotenv",
+    "dotenvy",
     "openpyxl",
     "rowconfig",
+    "serde",
     "textvariable",
     "Treeview",
     "validatecommand",
