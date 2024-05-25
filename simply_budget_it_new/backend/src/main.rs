@@ -1,39 +1,71 @@
-pub mod models;
-pub mod schema;
-use self::models::NewTransaction;
+use std::net::SocketAddr;
 
-use diesel::prelude::*;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
-use diesel::result::Error;
-use std::env;
+use deadpool_diesel::postgres::{Runtime, Manager, Pool};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-fn main() {
+use crate::config::config;
+use crate::errors::internal_error;
+use crate::router::app_router;
 
-    let pool = get_connection_pool();
+// Import modules
 
-    let transaction = NewTransaction {
-        description: "Test".to_string(),
-        amount: 100.0,
-        transaction_type: todo!(),
-        transaction_date: todo!(),
-    };
+mod schema;
+mod router;
+mod config;
+mod errors;
+mod domain;
 
-    add_transaction(&pool, transaction).expect("Should add transaction to database")
+#[derive(Clone)]
+pub struct AppState {
+   pub pool: Pool,
+}
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
+
+
+#[tokio::main]
+async fn main() {
+    // Initialize tracing for logging
+    init_tracing();
+
+    // Load config settings
+    let config = config().await;
+
+    // Set up DB pool 
+    let manager = Manager::new(config.db_url().to_string(), Runtime::Tokio1);
+    let pool = Pool::builder(manager).max_size(100).build().unwrap();
+
+    // Run migrations
+    run_migrations(&pool).await;
     
+    // Set app state and router
+    let state = AppState { pool };
+    let app = app_router(state.clone());
+
+    // Get server address and create server
+    let host = config.server_host();
+    let port = config.server_port();
+
+    let address = format!("{}:{}", host, port);
+
+    let socket_addr: SocketAddr = address.parse().unwrap();
+
+    // Log server listening address
+    tracing::info!("Listening on http://{}", socket_addr);
+
+    // Start Axum server
+    axum::Server::bind(&socket_addr).serve(app.into_make_service()).await.map_err(internal_error).unwrap();
 }
 
-// Make sure to embed diesel migrations at top of main.rs
 
-pub fn get_connection_pool() -> Pool<ConnectionManager<PgConnection>> {
-    let database_url = env::var("POSTGRES_URL").expect("POSTGRES_URL must be set");
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-
-    Pool::builder().test_on_check_out(true).build(manager).expect("Should create a connection pool")
+// Create function to initialize tracing for logging
+fn init_tracing() {
+    tracing_subscriber::registry().with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "Users=debug".into()),).with(tracing_subscriber::fmt::layer()).init();
 }
 
-pub fn add_transaction(pool: &Pool<ConnectionManager<PgConnection>>, transaction: Transaction) -> Result<(), Error> {
-
-    Ok(())
-
+// Create function to run migrations
+async fn run_migrations(pool: &Pool) {
+    let conn = pool.get().await.unwrap();
+    conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_|())).await.unwrap().unwrap();
 }
