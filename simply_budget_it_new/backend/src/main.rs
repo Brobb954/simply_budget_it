@@ -1,28 +1,26 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
+use axum::{routing::get, Router};
 use deadpool_diesel::postgres::{Runtime, Manager, Pool};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::config::config;
 use crate::errors::internal_error;
-use crate::router::app_router;
 
 // Import modules
 
 mod schema;
-mod router;
 mod config;
 mod errors;
 mod domain;
 
-#[derive(Clone)]
-pub struct AppState {
-   pub pool: Pool,
-}
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
+pub struct AppState {
+   pub pool: Pool,
+}
 
 #[tokio::main]
 async fn main() {
@@ -38,10 +36,10 @@ async fn main() {
 
     // Run migrations
     run_migrations(&pool).await;
-    
-    // Set app state and router
-    let state = AppState { pool };
-    let app = app_router(state.clone());
+    // Create shared state
+    let shared_state = Arc::new(AppState { pool });
+    // Set app  router
+    let app = Router::new().route("/", get(root)).with_state(shared_state);
 
     // Get server address and create server
     let host = config.server_host();
@@ -53,12 +51,16 @@ async fn main() {
 
     // Log server listening address
     tracing::info!("Listening on http://{}", socket_addr);
+    println!{"Listening on http://{}", socket_addr};
 
     // Start Axum server
     axum::Server::bind(&socket_addr).serve(app.into_make_service()).await.map_err(internal_error).unwrap();
 }
 
 
+async fn root() -> &'static str {
+    "Hello, World!"
+}
 // Create function to initialize tracing for logging
 fn init_tracing() {
     tracing_subscriber::registry().with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "Users=debug".into()),).with(tracing_subscriber::fmt::layer()).init();

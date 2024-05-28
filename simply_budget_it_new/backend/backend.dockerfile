@@ -22,7 +22,11 @@ RUN diesel setup
 # Stage 2: Runtime
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
+# Install libpq in the runtime image
+RUN apt-get update && apt-get install -y libpq-dev && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/backend /usr/local/bin
 COPY --from=builder /usr/local/cargo/bin/diesel /usr/local/bin
+
+EXPOSE 8000
 
 ENTRYPOINT ["/usr/local/bin/backend"]
