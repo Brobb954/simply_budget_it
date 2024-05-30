@@ -1,5 +1,5 @@
-use std::env;
 use dotenvy::dotenv;
+use std::env;
 use tokio::sync::OnceCell;
 
 // Struct to represent server config
@@ -41,7 +41,10 @@ async fn init_config() -> Config {
     dotenv().ok();
     let server_config = ServerConfig {
         host: env::var("HOST").unwrap_or_else(|_| String::from("0.0.0.0")),
-        port: env::var("PORT").unwrap_or_else(|_| String::from("8000")).parse::<u16>().unwrap(),
+        port: env::var("PORT")
+            .unwrap_or_else(|_| String::from("8000"))
+            .parse::<u16>()
+            .unwrap(),
     };
 
     let database_config = DatabaseConfig {
@@ -50,7 +53,7 @@ async fn init_config() -> Config {
 
     Config {
         server: server_config,
-        db: database_config, 
+        db: database_config,
     }
 }
 

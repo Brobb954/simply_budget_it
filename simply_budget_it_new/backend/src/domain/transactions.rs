@@ -1,13 +1,16 @@
 use std::io::Write;
 
+use crate::domain::budgets::Budget;
+use crate::schema::{self, transactions};
 use bigdecimal::BigDecimal;
 use chrono::{NaiveDate, NaiveDateTime};
-use diesel::{ deserialize::{self, FromSql, FromSqlRow}, expression::AsExpression, prelude::*, serialize::{self, IsNull, Output, ToSql}};
 use diesel::pg::{Pg, PgValue};
-use crate::schema::{self, transactions};
-use crate::domain::budgets::Budget;
-
-
+use diesel::{
+    deserialize::{self, FromSql, FromSqlRow},
+    expression::AsExpression,
+    prelude::*,
+    serialize::{self, IsNull, Output, ToSql},
+};
 
 #[derive(Queryable, Identifiable, Associations, Selectable, Debug, PartialEq)]
 #[diesel(belongs_to(Budget))]
@@ -18,7 +21,6 @@ pub struct Transaction {
     pub transaction_type: TransactionType,
     pub amount: f32,
     pub transaction_date: Option<NaiveDateTime>,
-    pub created_at: NaiveDateTime,
     pub budget_id: i32,
 }
 
@@ -32,7 +34,6 @@ pub struct NewTransaction<'a> {
     pub transaction_date: Option<&'a NaiveDate>,
     pub budget_id: &'a i32,
 }
-
 
 #[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq)]
 #[diesel(sql_type = schema::sql_types::TransactionType)]

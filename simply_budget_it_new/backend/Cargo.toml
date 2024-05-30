@@ -7,16 +7,21 @@ edition = "2021"
 
 [dependencies]
 diesel_migrations = { version = "2", features = ["postgres"] }
-axum = { version = "0.6", features = ["macros"] }
+axum = { version = "0.7", features = ["macros"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.68"
 tokio = { version = "1.0", features = ["full"] }
-tower-http = { version = "0.3.4", features = ["cors"] }
-chrono = "0.4.38"
-diesel = { version = "2.1.6", features = ["r2d2", "bigdecimal", "chrono", "postgres", "num-bigint", "num-integer", "num-traits"] }
+tower-http = { version = "0.3.4", features = ["cors", "trace"] }
+tower = { version = "0.4", features = ["util", "timeout"] }
+chrono = {version = "0.4.38", features = ["serde"]}
+diesel = { version = "2.1.6", features = ["r2d2", "bigdecimal", "chrono", "postgres", "num-bigint", "num-integer", "num-traits", "serde_json"] }
 bigdecimal = "0.4.3"
 deadpool-diesel = { version = "0.6.1", features = ["postgres"] }
 axum-macros = "0.4.1"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing = "0.1.40"
 dotenvy = "0.15.7"
+toml = "0.8.13"
+clerk-rs = { version = "0.3.0", features = ["axum"] }
+futures-util = "0.3.30"
+axum-extra = { version = "0.9.3", features = ["cookie"] }

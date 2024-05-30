@@ -1,25 +1,39 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use axum::{routing::get, Router};
-use deadpool_diesel::postgres::{Runtime, Manager, Pool};
+use crate::{
+    config::config,
+    domain::{
+        budgets::{create_budget, update_budget},
+        users::create_user,
+    },
+};
+use crate::{
+    domain::budgets::{delete_all_budgets, delete_budget, get_budgets},
+    errors::internal_error,
+};
+use axum::{
+    routing::{delete, get, post},
+    Router,
+};
+use clerk_rs::{clerk::Clerk, validators::axum::ClerkLayer, ClerkConfiguration};
+use deadpool_diesel::postgres::{Manager, Pool, Runtime};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
+use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::config::config;
-use crate::errors::internal_error;
-
 // Import modules
-
-mod schema;
 mod config;
-mod errors;
 mod domain;
-
+mod errors;
+mod schema;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
 pub struct AppState {
-   pub pool: Pool,
+    pub client: Clerk,
+    pub pool: Pool,
 }
 
 #[tokio::main]
@@ -30,16 +44,34 @@ async fn main() {
     // Load config settings
     let config = config().await;
 
-    // Set up DB pool 
+    // Set up DB pool
     let manager = Manager::new(config.db_url().to_string(), Runtime::Tokio1);
     let pool = Pool::builder(manager).max_size(100).build().unwrap();
 
     // Run migrations
     run_migrations(&pool).await;
+
+    // Initialize Clerk client
+    let content = std::fs::read_to_string("./Secrets.toml").unwrap();
+    let secrets: toml::Value = toml::from_str(&content).unwrap();
+    let clerk_secret_key = secrets["CLERK_SECRET_KEY"].to_string();
+    let clerk_config: ClerkConfiguration =
+        ClerkConfiguration::new(None, None, Some(clerk_secret_key), None);
+    let client = Clerk::new(clerk_config.clone());
+
     // Create shared state
-    let shared_state = Arc::new(AppState { pool });
+    let shared_state = Arc::new(AppState { client, pool });
+
     // Set app  router
-    let app = Router::new().route("/", get(root)).with_state(shared_state);
+    let app = Router::new()
+        .route("/delete/", delete(delete_budget))
+        .route("/delete/all", delete(delete_all_budgets))
+        .route("/create", post(create_budget))
+        .route("/update", post(update_budget))
+        .route("/get", get(get_budgets))
+        .route("/users", post(create_user))
+        // .layer(ClerkLayer::new(clerk_config, None, true))
+        .with_state(shared_state);
 
     // Get server address and create server
     let host = config.server_host();
@@ -50,24 +82,33 @@ async fn main() {
     let socket_addr: SocketAddr = address.parse().unwrap();
 
     // Log server listening address
-    tracing::info!("Listening on http://{}", socket_addr);
-    println!{"Listening on http://{}", socket_addr};
+    tracing::debug!("Listening on http://{}", socket_addr);
 
     // Start Axum server
-    axum::Server::bind(&socket_addr).serve(app.into_make_service()).await.map_err(internal_error).unwrap();
+    let tcp_listener = TcpListener::bind(&socket_addr).await.unwrap();
+
+    axum::serve(tcp_listener, app)
+        .await
+        .map_err(internal_error)
+        .unwrap();
 }
 
-
-async fn root() -> &'static str {
-    "Hello, World!"
-}
 // Create function to initialize tracing for logging
 fn init_tracing() {
-    tracing_subscriber::registry().with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "Users=debug".into()),).with(tracing_subscriber::fmt::layer()).init();
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 }
 
 // Create function to run migrations
 async fn run_migrations(pool: &Pool) {
     let conn = pool.get().await.unwrap();
-    conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_|())).await.unwrap().unwrap();
+    conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_| ()))
+        .await
+        .unwrap()
+        .unwrap();
 }

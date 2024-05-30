@@ -11,7 +11,6 @@ diesel::table! {
         id -> Int4,
         name -> Varchar,
         description -> Nullable<Text>,
-        created_at -> Nullable<Timestamp>,
         user_id -> Int4,
     }
 }
@@ -26,7 +25,6 @@ diesel::table! {
         transaction_type -> TransactionType,
         amount -> Numeric,
         transaction_date -> Nullable<Date>,
-        created_at -> Timestamp,
         budget_id -> Int4,
     }
 }
@@ -36,15 +34,10 @@ diesel::table! {
         id -> Int4,
         username -> Varchar,
         email -> Varchar,
-        password_hash -> Varchar,
     }
 }
 
 diesel::joinable!(budgets -> users (user_id));
 diesel::joinable!(transactions -> budgets (budget_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    budgets,
-    transactions,
-    users,
-);
+diesel::allow_tables_to_appear_in_same_query!(budgets, transactions, users,);

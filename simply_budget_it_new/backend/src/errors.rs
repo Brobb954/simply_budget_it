@@ -1,22 +1,20 @@
 use axum::http::StatusCode;
-use axum::Json;
 use axum::response::IntoResponse;
+use axum::Json;
 use serde_json::json;
 
 #[derive(Debug)]
-#[allow(dead_code)] 
+#[allow(dead_code)]
 pub enum AppError {
     InternalServerError,
     BodyParsingError(String),
 }
 
-pub fn internal_error<E>(_err: E) -> AppError { 
+pub fn internal_error<E>(_err: E) -> AppError {
     AppError::InternalServerError
 }
 
-
 impl IntoResponse for AppError {
-
     fn into_response(self) -> axum::response::Response {
         let (status, err_msg) = match self {
             Self::InternalServerError => (
@@ -29,5 +27,5 @@ impl IntoResponse for AppError {
             ),
         };
         (status, Json(json!({"message": err_msg}))).into_response()
-    }   
+    }
 }

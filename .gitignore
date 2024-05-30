@@ -17,6 +17,7 @@ simply_budget_it_new/backend/target/
 simply_budget_it_new/frontend/node_modules
 simply_budget_it_new/.vscode/
 simply_budget_it_new/backend/.env
+simply_budget_it_new/backend/Secrets.toml
 
 simply_budget_it_new/.env
 
