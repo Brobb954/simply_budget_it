@@ -19,6 +19,7 @@ use clerk_rs::{clerk::Clerk, validators::axum::ClerkLayer, ClerkConfiguration};
 use deadpool_diesel::postgres::{Manager, Pool, Runtime};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
+use domain::routehandlers::delete_handler;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -64,8 +65,7 @@ async fn main() {
 
     // Set app  router
     let app = Router::new()
-        .route("/delete/", delete(delete_budget))
-        .route("/delete/all", delete(delete_all_budgets))
+        .route("/delete/:type", delete(delete_handler))
         .route("/create", post(create_budget))
         .route("/update", post(update_budget))
         .route("/get", get(get_budgets))
