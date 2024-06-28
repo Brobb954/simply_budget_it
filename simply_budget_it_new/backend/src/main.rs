@@ -7,10 +7,7 @@ use crate::{
         users::create_user,
     },
 };
-use crate::{
-    domain::budgets::{delete_all_budgets, delete_budget, get_budgets},
-    errors::internal_error,
-};
+use crate::{domain::budgets::get_budgets, errors::internal_error};
 use axum::{
     routing::{delete, get, post},
     Router,
@@ -21,7 +18,6 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 use domain::routehandlers::delete_handler;
 use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 // Import modules
@@ -70,7 +66,7 @@ async fn main() {
         .route("/update", post(update_budget))
         .route("/get", get(get_budgets))
         .route("/users", post(create_user))
-        // .layer(ClerkLayer::new(clerk_config, None, true))
+        .layer(ClerkLayer::new(clerk_config, None, true))
         .with_state(shared_state);
 
     // Get server address and create server

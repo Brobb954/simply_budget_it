@@ -1,7 +1,13 @@
 use std::io::Write;
+use std::sync::Arc;
 
 use crate::domain::budgets::Budget;
 use crate::schema::{self, transactions};
+use crate::AppState;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::{debug_handler, Json};
 use bigdecimal::BigDecimal;
 use chrono::{NaiveDate, NaiveDateTime};
 use diesel::pg::{Pg, PgValue};
@@ -11,8 +17,9 @@ use diesel::{
     prelude::*,
     serialize::{self, IsNull, Output, ToSql},
 };
+use serde::Deserialize;
 
-#[derive(Queryable, Identifiable, Associations, Selectable, Debug, PartialEq)]
+#[derive(Queryable, Identifiable, Associations, Selectable, Debug, PartialEq, Deserialize)]
 #[diesel(belongs_to(Budget))]
 #[diesel(table_name = transactions)]
 pub struct Transaction {
@@ -60,4 +67,63 @@ impl FromSql<schema::sql_types::TransactionType, Pg> for TransactionType {
             _ => Err("Unrecognized enum variant".into()),
         }
     }
+}
+
+#[debug_handler]
+pub async fn delete_transactions(
+    State(state): State<Arc<AppState>>,
+    Json(transaction): Json<Transaction>,
+) -> Response {
+    use self::transactions::dsl::*;
+    let conn = &mut match state.pool.get().await {
+        Ok(conn) => conn,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error connecting to the database",
+            )
+                .into_response()
+        }
+    };
+    let transaction_deleted = conn
+        .interact(move |conn| {
+            diesel::delete(transactions.filter(id.eq(transaction.id)))
+                .execute(conn)
+                .expect("budget for be deleted")
+        })
+        .await
+        .expect("Could not find budget");
+
+    if let match transaction_deleted {
+        0_usize => 
+    }
+
+    transaction_deleted
+}
+
+#[debug_handler]
+pub async fn delete_all_transactions(
+    Stat(state): State<Arc<AppState>>,
+    Json(budget): Json<Budget>,
+) -> Response {
+    let conn = match state.pool.get().await {
+        Ok(conn) => conn,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error connecting to the database",
+            )
+                .into_response()
+        }
+    };
+
+    conn.interact(move |conn| {
+        diesel::delete(transactions::table.filter(transactions::budget_id.eq(budget.user_id)))
+            .execute(conn)
+            .expect("Error filtering transactions")
+    })
+    .await
+    .expect("Error deleting all transactions for budget");
+
+    "All transactions deleted".into_response()
 }
