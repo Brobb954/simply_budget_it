@@ -1,11 +1,6 @@
-use std::{net::SocketAddr, sync::Arc};
-
-use crate::{
-    config::config,
-    domain::{
-        budgets::{create_budget, update_budget},
-        users::create_user,
-    },
+use crate::domain::{
+    budgets::{create_budget, update_budget},
+    users::create_user,
 };
 use crate::{domain::budgets::get_budgets, errors::internal_error};
 use axum::{
@@ -13,8 +8,11 @@ use axum::{
     Router,
 };
 use clerk_rs::{clerk::Clerk, validators::axum::ClerkLayer, ClerkConfiguration};
-use deadpool_diesel::postgres::{Manager, Pool, Runtime};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use config::config;
+use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection};
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_migrations::MigrationHarness;
+use std::{net::SocketAddr, sync::Arc};
 
 use domain::routehandlers::delete_handler;
 use tokio::net::TcpListener;
@@ -26,25 +24,22 @@ mod domain;
 mod errors;
 mod schema;
 
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
+pub const MIGRATIONS: diesel_async_migrations::EmbeddedMigrations = diesel_async_migrations::embed_migrations!();
 
 pub struct AppState {
     pub client: Clerk,
-    pub pool: Pool,
+    pub pool: Arc<Pool<AsyncPgConnection>>,
 }
 
 #[tokio::main]
 async fn main() {
     // Initialize tracing for logging
     init_tracing();
-
-    // Load config settings
     let config = config().await;
-
-    // Set up DB pool
-    let manager = Manager::new(config.db_url().to_string(), Runtime::Tokio1);
-    let pool = Pool::builder(manager).max_size(100).build().unwrap();
-
+    let conn_manager = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(
+        config.db_url().to_string(),
+    );
+    let pool = Pool::builder(conn_manager).build()?;
     // Run migrations
     run_migrations(&pool).await;
 
@@ -101,10 +96,8 @@ fn init_tracing() {
 }
 
 // Create function to run migrations
-async fn run_migrations(pool: &Pool) {
-    let conn = pool.get().await.unwrap();
-    conn.interact(|conn| conn.run_pending_migrations(MIGRATIONS).map(|_| ()))
-        .await
-        .unwrap()
-        .unwrap();
+async fn run_migrations(pool: &Pool<AsyncPgConnection>) -> anyhow::Result<()> {
+    let mut conn = pool.get().await.unwrap();
+MIGRATIONS.run_pending_migrations(&mut conn).await?;
+    Ok(())
 }

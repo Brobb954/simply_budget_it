@@ -25,3 +25,6 @@ toml = "0.8.13"
 clerk-rs = { version = "0.3.0", features = ["axum"] }
 futures-util = "0.3.30"
 axum-extra = { version = "0.9.3", features = ["cookie"] }
+diesel-async = { version = "0.4.1", features = ["deadpool", "postgres"] }
+diesel_async_migrations = "0.12.0"
+anyhow = "1.0.86"

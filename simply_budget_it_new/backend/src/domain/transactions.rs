@@ -89,21 +89,15 @@ pub async fn delete_transactions(
         .interact(move |conn| {
             diesel::delete(transactions.filter(id.eq(transaction.id)))
                 .execute(conn)
-                .expect("budget for be deleted")
-        })
-        .await
-        .expect("Could not find budget");
+                .unwrap()
+        }).await;
 
-    if let match transaction_deleted {
-        0_usize => 
-    }
-
-    transaction_deleted
+    transaction_deleted.unwrap()
 }
 
 #[debug_handler]
 pub async fn delete_all_transactions(
-    Stat(state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Json(budget): Json<Budget>,
 ) -> Response {
     let conn = match state.pool.get().await {
