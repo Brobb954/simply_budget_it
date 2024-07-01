@@ -22,10 +22,9 @@
 
 <h3 align="center">Simply Budget It</h3>
 
-<h3 align="center">This is currently under maintenance, the python build is still able to be build locally but currently I am porting this to a webapp with nextjs frontend and rust backend</h3>
 
   <p align="center">
-    A simple budget tool for locally tracking income and expenses
+    A simple budget tool for tracking income and expenses
     <br />
     <a href="https://github.com/Brobb954/simple_budget/issues">Report Bug</a>
     ·
@@ -35,6 +34,12 @@
 </br>
 </br>
 
+
+<!-- ABOUT THE PROJECT -->
+## About The Project
+This project is a passion of mine, designed to enhance my skills in TypeScript and Rust. The website uses the Next.js framework with TypeScript for the frontend and an Axum-based web server in Rust for the backend. Neon.tech serves as the database, interfaced by the Diesel ORM. The entire project runs inside a Docker container, hosted on the Render platform. Additionally, I am developing a custom Ollama AI that will reside within the Docker container.
+
+The inspiration for this project stems from my search for a simple, user-friendly budgeting app. I wanted an app with just enough features to be effective without being cumbersome to navigate. The goal is to maintain a simple, visually appealing UI while empowering users to view various graphs and understand their spending patterns.
 
 
 <!-- TABLE OF CONTENTS -->
@@ -51,7 +56,7 @@
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
+    <li><a href="#features">Features</a></li>
     <li><a href="#known-bugs">Known Bugs</a></li>
     <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
@@ -62,70 +67,32 @@
 </br>
 </br>
 
+<!-- FEATURES-->
+## Features
 
+- User-Friendly Interface: A clean and intuitive UI designed for ease of use.
+- Graphical Insights: Visual representations to help users track their spending and savings.
+- AI Assistance: An integrated AI assistant to analyze budgets, suggest ways to save money, and provide non-financial advice (NFA) on investment options. The AI can also estimate the potential future value of investments over a typical career length.
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
-
-[![Product Name Screen Shot][product-screenshot]](https://github.com/Brobb954/simple_budget)
-
-This is a passion project of mine to further my python development skills and solve a problem I have had for a while. I enjoy budgeting and forecasting my income and fixed expenses (bills) but I couldn't find a simple app or program to do this with. Now that I am learning python I figured this is the perfect opportunity to create what I was looking for. 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-<!-- GETTING STARTED -->
-## Getting Started
-
-To get a local copy of this program up and running follow the directions below.
-
-### Prerequisites
-
-This is an example of how to list things you need to use the software and how to install them.
-* openpyxl
-  ```sh
-  pip install openpyxl
-  ```
-
-### Installation
-
-1. Clone the repo
-   ```sh
-   git clone https://github.com/Brobb954/simple_budget.git
-   ```
-2. Check if pip is installed
-   ```sh
-   pip --version
-   ```
-3. Install openpyxl
-   ```sh
-   pip install openpyxl
-   ```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-
-<!-- USAGE EXAMPLES -->
-## Usage
-
-Coming Soon
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 
 <!-- KNOWN BUGS -->
 ## Known Bugs
 
 
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ROADMAP -->
 ## Roadmap
 
-- [ ] Multiple Budget Management
-- [ ] Conversion to PyQT
-- [ ] Graphical Interface for tracking budget
-- [ ] SQL Integration
+- [ ] Create a straightforward and efficient budgeting app.
+- [ ] Enhance user experience through a simple and pleasant UI.
+- [ ] Provide powerful insights through graphical data representation.
+- [ ] Integrate AI assistance for budget analysis and financial advice.
+
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 See the [open issues](https://github.com/Brobb954/simple_budget/issues) for a full list of proposed features (and known issues).
 
@@ -142,9 +109,9 @@ If you have a suggestion that would make this better, please fork the repo and c
 Don't forget to give the project a star! Thanks again!
 
 1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
+2. Create your Feature Branch (`git checkout -b feature/amazing-feature`)
+3. Commit your Changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the Branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -163,7 +130,7 @@ Distributed under the Apache License. See `LICENSE.txt` for more information.
 <!-- CONTACT -->
 ## Contact
 
-Brandon Robb - [@Brxbb_eth](https://twitter.com/Brxbb_eth) - Robbb954@gmail.com
+Brandon Robb - [@Brxbb_eth](https://twitter.com/Brobb954) - Robbb954@gmail.com
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
