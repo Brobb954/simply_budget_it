@@ -11,10 +11,9 @@ use clerk_rs::{clerk::Clerk, validators::axum::ClerkLayer, ClerkConfiguration};
 use config::config;
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection};
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use diesel_migrations::MigrationHarness;
 use std::{net::SocketAddr, sync::Arc};
 
-use domain::routehandlers::delete_handler;
+use domain::{budgets::{delete_all_budgets, delete_budget}, transactions::{delete_all_transactions, delete_transactions}};
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -24,11 +23,11 @@ mod domain;
 mod errors;
 mod schema;
 
-pub const MIGRATIONS: diesel_async_migrations::EmbeddedMigrations = diesel_async_migrations::embed_migrations!();
+pub static MIGRATIONS: diesel_async_migrations::EmbeddedMigrations = diesel_async_migrations::embed_migrations!();
 
 pub struct AppState {
     pub client: Clerk,
-    pub pool: Arc<Pool<AsyncPgConnection>>,
+    pub pool: Pool<AsyncPgConnection>,
 }
 
 #[tokio::main]
@@ -36,12 +35,13 @@ async fn main() {
     // Initialize tracing for logging
     init_tracing();
     let config = config().await;
-    let conn_manager = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(
+    let conn_manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(
         config.db_url().to_string(),
     );
-    let pool = Pool::builder(conn_manager).build()?;
+    let pool = Pool::builder(conn_manager).build().expect("Should Build Pool");
+
     // Run migrations
-    run_migrations(&pool).await;
+    let _ = run_migrations(&pool).await;
 
     // Initialize Clerk client
     let content = std::fs::read_to_string("./Secrets.toml").unwrap();
@@ -56,7 +56,10 @@ async fn main() {
 
     // Set app  router
     let app = Router::new()
-        .route("/delete/:type", delete(delete_handler))
+        .route("/delete/dab", delete(delete_all_budgets))
+        .route("delete/dat", delete(delete_all_transactions))
+        .route("delete/dt", delete(delete_transactions))
+        .route("delete/db", delete(delete_budget))
         .route("/create", post(create_budget))
         .route("/update", post(update_budget))
         .route("/get", get(get_budgets))

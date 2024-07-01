@@ -1,5 +1,3 @@
-use std::{sync::Arc, usize};
-
 use crate::domain::users::User;
 use crate::{schema::budgets, AppState};
 use axum::{
@@ -10,7 +8,9 @@ use axum::{
     Json,
 };
 use diesel::prelude::*;
+use diesel_async::RunQueryDsl;
 use serde::{Deserialize, Serialize};
+use std::{sync::Arc, usize};
 use tracing::info;
 
 #[derive(
@@ -61,6 +61,7 @@ pub async fn update_budget(
     State(state): State<Arc<AppState>>,
     Json(budget): Json<Budget>,
 ) -> Response {
+    use self::budgets::dsl::*;
     let updated_budget = Budget {
         id: budget.id,
         name: budget.name,
@@ -68,7 +69,7 @@ pub async fn update_budget(
         user_id: budget.user_id,
     };
 
-    let conn = match state.pool.get().await {
+    let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
             return (
@@ -78,40 +79,28 @@ pub async fn update_budget(
                 .into_response()
         }
     };
-
-    conn.interact(move |conn| {
-        diesel::update(budgets::table)
-            .set(&updated_budget.clone())
-            .filter(budgets::id.eq(budget.id))
-            .execute(conn)
-            .expect("Error updating budget");
-    })
-    .await
-    .expect("Error updating budget");
-
-    let budgets = budgets::table.filter(budgets::id.eq(budget.id));
-    let updated: Budget = conn
-        .interact(move |conn| {
-            budgets
-                .get_result::<Budget>(conn)
-                .expect("Error finding budgets for user")
-        })
-        .await
-        .expect("Did not find any budgets for user");
-
-    (StatusCode::ACCEPTED, Json(updated)).into_response()
+    let updated = diesel::update(budgets)
+        .set(&updated_budget.clone())
+        .filter(id.eq(budget.id))
+        .execute(&mut conn)
+        .await;
+    match updated.unwrap() {
+        0_usize => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        _ => (StatusCode::ACCEPTED).into_response(),
+    }
 }
 #[debug_handler]
 pub async fn create_budget(
     State(state): State<Arc<AppState>>,
     Json(budget): Json<NewBudget>,
 ) -> Response {
+    use self::budgets::dsl::*;
     let new_budget = NewBudget {
         name: budget.name,
         description: budget.description,
         user_id: budget.user_id,
     };
-    let conn = match state.pool.get().await {
+    let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
             return (
@@ -121,18 +110,17 @@ pub async fn create_budget(
                 .into_response()
         }
     };
-    let result = conn
-        .interact(move |conn| {
-            diesel::insert_into(budgets::table)
-                .values(&new_budget)
-                .get_result::<Budget>(conn)
-                .expect("Could not insert budget")
-        })
-        .await
-        .expect("Could not connect to database");
+    let result = diesel::insert_into(budgets)
+        .values(&new_budget)
+        .execute(&mut conn)
+        .await;
 
-    tracing::debug!("Returning JSON response: {:?}", result);
-    (StatusCode::CREATED, Json(result)).into_response()
+    match result.unwrap() {
+        0_usize => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        _ => (StatusCode::ACCEPTED).into_response(),
+    };
+
+    (StatusCode::CREATED).into_response()
 }
 
 #[debug_handler]
@@ -141,7 +129,7 @@ pub async fn delete_budget(
     Json(budget): Json<Budget>,
 ) -> Response {
     use self::budgets::dsl::*;
-    let conn = &mut match state.pool.get().await {
+    let mut conn = &mut match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
             return (
@@ -151,14 +139,13 @@ pub async fn delete_budget(
                 .into_response()
         }
     };
-    let budget_deleted: Result<Vec<Budget>, _> = conn
-        .interact(move |conn| diesel::delete(budgets.filter(id.eq(budget.id))).load::<Budget>(conn))
-        .await
-        .expect("Could not find budget");
-    let result = budget_deleted.as_ref().unwrap().clone().len();
-    match result {
+    let budget_deleted = diesel::delete(budgets)
+        .filter(id.eq(budget.id))
+        .execute(&mut conn)
+        .await;
+    match budget_deleted.unwrap() {
         0_usize => (StatusCode::INTERNAL_SERVER_ERROR, "Error deleting budget").into_response(),
-        _ => (StatusCode::ACCEPTED, Json(budget_deleted.unwrap())).into_response(),
+        _ => (StatusCode::ACCEPTED).into_response(),
     }
 }
 
@@ -167,7 +154,8 @@ pub async fn delete_all_budgets(
     State(state): State<Arc<AppState>>,
     Json(budget): Json<Budget>,
 ) -> Response {
-    let conn = match state.pool.get().await {
+    use self::budgets::dsl::*;
+    let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
             return (
@@ -177,42 +165,36 @@ pub async fn delete_all_budgets(
                 .into_response()
         }
     };
-
-    conn.interact(move |conn| {
-        diesel::delete(budgets::table.filter(budgets::user_id.eq(budget.user_id)))
-            .execute(conn)
-            .expect("Error deleting all budgets for user")
-    })
-    .await
-    .expect("Error deleting all budgets for user");
-
-    "All budgets deleted".into_response()
+    let deleted = diesel::delete(budgets)
+        .filter(user_id.eq(budget.user_id))
+        .execute(&mut conn)
+        .await;
+    match deleted.unwrap() {
+        0_usize => (StatusCode::INTERNAL_SERVER_ERROR, "Error deleting budgets").into_response(),
+        _ => "All budgets deleted".into_response(),
+    }
 }
 
 #[debug_handler]
-pub async fn get_budgets(State(state): State<Arc<AppState>>, Json(user): Json<User>) -> Response {
+pub async fn get_budgets(
+    State(state): State<Arc<AppState>>,
+    Json(user): Json<User>,
+) -> Json<Vec<Budget>> {
     info!("Looking for user budgets!");
 
-    let conn = match state.pool.get().await {
+    use self::budgets::dsl::*;
+    let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Error connecting to the database",
-            )
-                .into_response()
+            panic!("Should always recieve connection");
         }
     };
 
-    let budgets = budgets::table.filter(budgets::user_id.eq(user.id));
-    let budget: Vec<Budget> = conn
-        .interact(move |conn| {
-            budgets
-                .get_results::<Budget>(conn)
-                .expect("Error finding budgets for user")
-        })
+    let budgets_to_get = budgets.filter(user_id.eq(user.id));
+    let returned_budgets: Vec<Budget> = budgets_to_get
+        .get_results::<Budget>(&mut conn)
         .await
-        .expect("Did not find any budgets for user");
+        .unwrap();
 
-    Json(budget).into_response()
+    Json(returned_budgets)
 }

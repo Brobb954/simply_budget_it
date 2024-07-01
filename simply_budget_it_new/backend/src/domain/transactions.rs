@@ -1,3 +1,4 @@
+use diesel_async::RunQueryDsl;
 use std::io::Write;
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ use diesel::{
 };
 use serde::Deserialize;
 
-#[derive(Queryable, Identifiable, Associations, Selectable, Debug, PartialEq, Deserialize)]
+#[derive(Queryable, Clone, Identifiable, Associations, Selectable, Debug, PartialEq, Deserialize)]
 #[diesel(belongs_to(Budget))]
 #[diesel(table_name = transactions)]
 pub struct Transaction {
@@ -42,7 +43,7 @@ pub struct NewTransaction<'a> {
     pub budget_id: &'a i32,
 }
 
-#[derive(Debug, PartialEq, FromSqlRow, AsExpression, Eq)]
+#[derive(Debug, PartialEq, Clone, Deserialize, FromSqlRow, AsExpression, Eq)]
 #[diesel(sql_type = schema::sql_types::TransactionType)]
 pub enum TransactionType {
     Income,
@@ -71,36 +72,30 @@ impl FromSql<schema::sql_types::TransactionType, Pg> for TransactionType {
 
 #[debug_handler]
 pub async fn delete_transactions(
-    State(state): State<Arc<AppState>>,
-    Json(transaction): Json<Transaction>,
+    state: State<Arc<AppState>>,
+   Json(delete_trans): Json<Vec<Transaction>>,
 ) -> Response {
     use self::transactions::dsl::*;
-    let conn = &mut match state.pool.get().await {
-        Ok(conn) => conn,
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Error connecting to the database",
-            )
-                .into_response()
-        }
-    };
-    let transaction_deleted = conn
-        .interact(move |conn| {
-            diesel::delete(transactions.filter(id.eq(transaction.id)))
-                .execute(conn)
-                .unwrap()
-        }).await;
-
-    transaction_deleted.unwrap()
+    let delete_transactions = delete_trans;
+    let conn = &mut state.pool.get().await;
+    for transaction in delete_transactions.into_iter() {
+        match diesel::delete(transactions)
+            .filter(id.eq(transaction.id))
+            .execute(conn.as_mut().unwrap()).await{
+           Ok( 0_usize) => return "Failed to delete".into_response(),
+            _ => continue,
+        };
+    }
+    (StatusCode::ACCEPTED).into_response()
 }
 
 #[debug_handler]
 pub async fn delete_all_transactions(
-    State(state): State<Arc<AppState>>,
-    Json(budget): Json<Budget>,
+    state: State<Arc<AppState>>,
+    budget: Json<Budget>,
 ) -> Response {
-    let conn = match state.pool.get().await {
+    use self::transactions::dsl::*;
+    let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
             return (
@@ -111,13 +106,12 @@ pub async fn delete_all_transactions(
         }
     };
 
-    conn.interact(move |conn| {
-        diesel::delete(transactions::table.filter(transactions::budget_id.eq(budget.user_id)))
-            .execute(conn)
-            .expect("Error filtering transactions")
-    })
-    .await
-    .expect("Error deleting all transactions for budget");
+    let deleted_transactions = diesel::delete(transactions.filter(budget_id.eq(budget.user_id)))
+        .execute(&mut conn)
+        .await;
 
-    "All transactions deleted".into_response()
+    match deleted_transactions.unwrap() {
+        0_usize => (StatusCode::INTERNAL_SERVER_ERROR, "Error deleting budget").into_response(),
+        _ => "All transactions deleted".into_response(),
+    }
 }
