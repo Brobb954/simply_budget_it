@@ -14,7 +14,7 @@ use diesel_async::pooled_connection::{AsyncDieselConnectionManager, ManagerConfi
 use diesel_async::{pooled_connection::deadpool::Pool, AsyncPgConnection};
 use futures_util::{future::BoxFuture, FutureExt};
 use std::{net::SocketAddr, sync::Arc};
-
+use rustls::pki_types::CertificateDer;
 use domain::{
     budgets::{delete_all_budgets, delete_budget},
     transactions::{
@@ -150,7 +150,6 @@ fn establish_connection(config: &str) -> BoxFuture<ConnectionResult<AsyncPgConne
 fn root_certs() -> rustls::RootCertStore {
     let mut roots = rustls::RootCertStore::empty();
     let certs = rustls_native_certs::load_native_certs().expect("Certs not loadable!");
-    let certs: Vec<_> = certs.into_iter().map(|cert| cert.0).collect();
-    roots.add_parsable_certificates(&certs);
+    roots.add_parsable_certificates(certs);
     roots
 }
