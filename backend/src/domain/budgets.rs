@@ -45,20 +45,10 @@ pub struct NewBudget {
     pub user_id: i32,
 }
 
-impl Budget {
-    pub fn into_budget(self) -> Budget {
-        Budget {
-            id: self.id,
-            name: self.name,
-            description: self.description,
-            user_id: self.user_id,
-        }
-    }
-}
 
 #[debug_handler]
 pub async fn update_budget(
-    State(state): State<Arc<AppState>>,
+    state: State<Arc<AppState>>,
     Json(budget): Json<Budget>,
 ) -> Response {
     use self::budgets::dsl::*;
@@ -89,17 +79,13 @@ pub async fn update_budget(
         _ => (StatusCode::ACCEPTED).into_response(),
     }
 }
+
 #[debug_handler]
 pub async fn create_budget(
-    State(state): State<Arc<AppState>>,
+    state: State<Arc<AppState>>,
     Json(budget): Json<NewBudget>,
 ) -> Response {
     use self::budgets::dsl::*;
-    let new_budget = NewBudget {
-        name: budget.name,
-        description: budget.description,
-        user_id: budget.user_id,
-    };
     let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
@@ -111,7 +97,7 @@ pub async fn create_budget(
         }
     };
     let result = diesel::insert_into(budgets)
-        .values(&new_budget)
+        .values(&budget)
         .execute(&mut conn)
         .await;
 
@@ -125,7 +111,7 @@ pub async fn create_budget(
 
 #[debug_handler]
 pub async fn delete_budget(
-    State(state): State<Arc<AppState>>,
+    state: State<Arc<AppState>>,
     Json(budget): Json<Budget>,
 ) -> Response {
     use self::budgets::dsl::*;
@@ -151,7 +137,7 @@ pub async fn delete_budget(
 
 #[debug_handler]
 pub async fn delete_all_budgets(
-    State(state): State<Arc<AppState>>,
+    state: State<Arc<AppState>>,
     Json(budget): Json<Budget>,
 ) -> Response {
     use self::budgets::dsl::*;
@@ -177,12 +163,12 @@ pub async fn delete_all_budgets(
 
 #[debug_handler]
 pub async fn get_budgets(
-    State(state): State<Arc<AppState>>,
+    state: State<Arc<AppState>>,
     Json(user): Json<User>,
 ) -> Json<Vec<Budget>> {
     info!("Looking for user budgets!");
-
     use self::budgets::dsl::*;
+
     let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {

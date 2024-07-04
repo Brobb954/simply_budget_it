@@ -36,16 +36,17 @@ pub struct NewUser {
     pub email: String,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct UserId {
+    pub user_id: String,
+}
+
 #[debug_handler]
 pub async fn create_user(
-    State(state): State<Arc<AppState>>,
+state: State<Arc<AppState>>,
     Json(user): Json<NewUser>,
 ) -> Response {
     use self::users::dsl::*;
-    let new_user = NewUser {
-        username: user.username,
-        email: user.email,
-    };
     let mut conn = match state.pool.get().await {
         Ok(conn) => conn,
         Err(_) => {
@@ -56,10 +57,48 @@ pub async fn create_user(
                 .into_response()
         }
     };
-    let created_user = diesel::insert_into(users).values(&new_user).execute(&mut conn).await;
+    let created_user = diesel::insert_into(users).values(&user).execute(&mut conn).await;
 
     match created_user.unwrap() {
         0_usize => (StatusCode::INTERNAL_SERVER_ERROR, "Error deleting budget").into_response(),
         _ => (StatusCode::ACCEPTED).into_response(),
     }
+}
+
+#[debug_handler]
+pub async fn update_user(
+    state: State<Arc<AppState>>,
+    Json(user): Json<User>
+) -> Response {
+  //  use self::users::dsl::*;
+    let mut _conn = match state.pool.get().await {
+        Ok(conn) => conn,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error connecting to the database",
+            )
+                .into_response()
+        }
+    };
+    format!("this is {:#?}", user).into_response()
+}
+
+
+#[debug_handler]
+pub async fn get_user(
+    state: State<Arc<AppState>>,
+    Json(user_id): Json<UserId>
+) -> Response {
+    let mut _conn = match state.pool.get().await {
+        Ok(conn) => conn,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error connecting to the database",
+            )
+                .into_response()
+        }
+    };
+    format!("this is {:#?}", user_id.user_id).into_response()
 }

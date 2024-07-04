@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{debug_handler, Json};
 use bigdecimal::BigDecimal;
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::NaiveDate;
 use diesel::pg::{Pg, PgValue};
 use diesel::{
     deserialize::{self, FromSql, FromSqlRow},
@@ -18,32 +18,43 @@ use diesel::{
     prelude::*,
     serialize::{self, IsNull, Output, ToSql},
 };
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 
-#[derive(Queryable, Clone, Identifiable, Associations, Selectable, Debug, PartialEq, Deserialize)]
+#[derive(
+    Queryable,
+    Clone,
+    Identifiable,
+    Associations,
+    Selectable,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    AsChangeset,
+)]
 #[diesel(belongs_to(Budget))]
 #[diesel(table_name = transactions)]
 pub struct Transaction {
     pub id: i32,
     pub description: Option<String>,
     pub transaction_type: TransactionType,
-    pub amount: f32,
-    pub transaction_date: Option<NaiveDateTime>,
+    pub amount: BigDecimal,
+    pub transaction_date: Option<NaiveDate>,
     pub budget_id: i32,
 }
 
-#[derive(Insertable, Associations)]
+#[derive(Insertable, Associations, Deserialize, Debug, Clone)]
 #[diesel(belongs_to(Budget))]
 #[diesel(table_name = transactions)]
-pub struct NewTransaction<'a> {
-    pub description: Option<&'a String>,
-    pub transaction_type: &'a TransactionType,
-    pub amount: &'a BigDecimal,
-    pub transaction_date: Option<&'a NaiveDate>,
-    pub budget_id: &'a i32,
+pub struct NewTransaction {
+    pub description: Option<String>,
+    pub transaction_type: TransactionType,
+    pub amount: BigDecimal,
+    pub transaction_date: Option<NaiveDate>,
+    pub budget_id: i32,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, FromSqlRow, AsExpression, Eq)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, FromSqlRow, AsExpression, Eq)]
 #[diesel(sql_type = schema::sql_types::TransactionType)]
 pub enum TransactionType {
     Income,
@@ -73,16 +84,17 @@ impl FromSql<schema::sql_types::TransactionType, Pg> for TransactionType {
 #[debug_handler]
 pub async fn delete_transactions(
     state: State<Arc<AppState>>,
-   Json(delete_trans): Json<Vec<Transaction>>,
+    Json(delete_transactions): Json<Vec<Transaction>>,
 ) -> Response {
     use self::transactions::dsl::*;
-    let delete_transactions = delete_trans;
-    let conn = &mut state.pool.get().await;
+    let mut conn = state.pool.get().await;
     for transaction in delete_transactions.into_iter() {
         match diesel::delete(transactions)
             .filter(id.eq(transaction.id))
-            .execute(conn.as_mut().unwrap()).await{
-           Ok( 0_usize) => return "Failed to delete".into_response(),
+            .execute(conn.as_mut().unwrap())
+            .await
+        {
+            Ok(0_usize) => return "Failed to delete".into_response(),
             _ => continue,
         };
     }
@@ -92,7 +104,7 @@ pub async fn delete_transactions(
 #[debug_handler]
 pub async fn delete_all_transactions(
     state: State<Arc<AppState>>,
-    budget: Json<Budget>,
+    Json(budget): Json<Budget>,
 ) -> Response {
     use self::transactions::dsl::*;
     let mut conn = match state.pool.get().await {
@@ -114,4 +126,69 @@ pub async fn delete_all_transactions(
         0_usize => (StatusCode::INTERNAL_SERVER_ERROR, "Error deleting budget").into_response(),
         _ => "All transactions deleted".into_response(),
     }
+}
+
+#[debug_handler]
+pub async fn create_transactions(
+    state: State<Arc<AppState>>,
+    Json(new_transactions): Json<Vec<NewTransaction>>,
+) -> Response {
+    use self::transactions::dsl::*;
+    let mut conn = match state.pool.get().await {
+        Ok(conn) => conn,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error connecting to the database",
+            )
+                .into_response()
+        }
+    };
+    for transaction in new_transactions.into_iter() {
+        match diesel::insert_into(transactions)
+            .values(&transaction)
+            .execute(&mut conn)
+            .await
+        {
+            Ok(0_usize) => return "Failed to delete".into_response(),
+            _ => continue,
+        }
+    }
+    "All transactions inserted successfully".into_response()
+}
+
+#[debug_handler]
+pub async fn update_transaction(
+    state: State<Arc<AppState>>,
+    Json(transaction): Json<Transaction>,
+) -> Response {
+    use self::transactions::dsl::*;
+    let mut conn = match state.pool.get().await {
+        Ok(conn) => conn,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Error connecting to the database",
+            )
+                .into_response()
+        }
+    };
+    let updated_transaction = diesel::update(transactions)
+        .set(&transaction)
+        .execute(&mut conn)
+        .await;
+    match updated_transaction.unwrap() {
+        0_usize => "Failed to update tx".into_response(),
+        _ => "Updated transaction successfully".into_response(),
+    }
+}
+
+
+#[debug_handler]
+pub async fn get_transactions(
+    state: State<Arc<AppState>>,
+    Json(budget): Json<Budget>
+) {
+print!("{:?}", budget);
+    let mut _conn =  state.pool.get().await; 
 }

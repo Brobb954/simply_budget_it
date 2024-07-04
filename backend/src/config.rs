@@ -3,11 +3,11 @@ use std::env;
 use tokio::sync::OnceCell;
 
 // Struct to represent server config
-#[derive(Debug)]
-struct ServerConfig {
-    host: String,
-    port: u16,
-}
+//#[derive(Debug)]
+//struct ServerConfig {
+//    host: String,
+//    port: u16,
+//}
 
 // Struct to represent database config
 #[derive(Debug)]
@@ -17,7 +17,7 @@ struct DatabaseConfig {
 
 #[derive(Debug)]
 pub struct Config {
-    server: ServerConfig,
+//    server: ServerConfig,
     db: DatabaseConfig,
 }
 
@@ -26,33 +26,33 @@ impl Config {
         &self.db.url
     }
 
-    pub fn server_host(&self) -> &str {
-        &self.server.host
-    }
+//    pub fn server_host(&self) -> &str {
+//        &self.server.host
+//    }
 
-    pub fn server_port(&self) -> u16 {
-        self.server.port
-    }
+//    pub fn server_port(&self) -> u16 {
+//        self.server.port
+//    }
 }
 
 pub static CONFIG: OnceCell<Config> = OnceCell::const_new();
 
 async fn init_config() -> Config {
     dotenv().ok();
-    let server_config = ServerConfig {
-        host: env::var("HOST").unwrap_or_else(|_| String::from("0.0.0.0")),
-        port: env::var("PORT")
-            .unwrap_or_else(|_| String::from("8000"))
-            .parse::<u16>()
-            .unwrap(),
-    };
+//    let server_config = ServerConfig {
+//        host: env::var("HOST").unwrap_or_else(|_| String::from("0.0.0.0")),
+//        port: env::var("PORT")
+//            .unwrap_or_else(|_| String::from("8000"))
+//            .parse::<u16>()
+//            .unwrap(),
+//    };
 
     let database_config = DatabaseConfig {
         url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
     };
 
     Config {
-        server: server_config,
+ //       server: server_config,
         db: database_config,
     }
 }
