@@ -17,9 +17,11 @@
 .vscode/
 /backend/.env
 /backend/Secrets.toml
-
+/frontend/.env
 backend/.env
-
+frontend/.env
+frontend/.next
+.env
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
